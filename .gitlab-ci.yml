@@ -1,0 +1,40 @@
+image: docker:19.03.12
+services:
+  - docker:19.03.12-dind
+
+stages:
+  - test
+
+default:
+  tags:
+    - docker
+  before_script:
+    # Install docker-compose.
+    - apk add --quiet docker-compose
+    # Build Docker images.
+    - docker-compose build --pull --parallel
+
+test:
+  stage: test
+  script:
+    # Functional tests.
+    - docker-compose run --rm tests
+
+# TODO: Add infrastructure code to create/manage an S3 bucket
+# infra:
+#   stage: test
+#   variables:
+#     COMPOSE_FILE: infra/docker-compose.yml
+#   script:
+#     # Start Localstack and wait for it to come up:
+#     - docker-compose up -d localstack
+#     - sleep 10
+#     - docker-compose run --rm aws s3api list-buckets
+#     # If using Terraform:
+#     - docker-compose run --rm terraform init -input=false
+#     - docker-compose run --rm terraform apply -input=false -auto-approve
+#     # If using CloudFormation:
+#     - docker-compose run --rm aws cloudformation create-stack --stack-name test --template-body file://cloudformation.yaml
+#     # Tests to validate infrastructure.
+#     - sleep 10
+#     - docker-compose run --rm tests

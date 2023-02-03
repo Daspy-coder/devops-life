@@ -1,0 +1,50 @@
+version: '2.1'
+
+services:
+  localstack:
+    image: localstack/localstack-light:0.11.2
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: "iam,s3,cloudformation"
+      DEBUG: ${DEBUG- }
+      DATA_DIR: "/tmp/localstack/data"
+      HOST_TMP_FOLDER: "/tmp/localstack"
+    volumes:
+      - "localstack-data:/tmp/localstack"
+
+  terraform:
+    image: hashicorp/terraform:0.12.26
+    working_dir: /src
+    environment:
+      TF_DATA_DIR: "/var/terraform"
+    volumes:
+      - "./terraform:/src/"
+      - "terraform-data:/var/terraform"
+    depends_on:
+      - "localstack"
+
+  aws:
+    image: amazon/aws-cli:2.0.24
+    environment:
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: none
+      AWS_SECRET_ACCESS_KEY: none
+      # This is used to wait until localstack starts up.
+      AWS_MAX_ATTEMPTS: 100
+    entrypoint: aws --endpoint-url=http://localstack:4566
+    volumes:
+      - "./cloudformation:/aws/"
+    depends_on:
+      - "localstack"
+
+  tests:
+    build: tests
+    volumes:
+      - "./tests:/app/"
+    depends_on:
+      - "localstack"
+
+volumes:
+  localstack-data:
+  terraform-data:

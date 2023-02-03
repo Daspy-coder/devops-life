@@ -1,0 +1,92 @@
+version: "3.7"
+
+services:
+  vote:
+    image: civicactions/devsecops1-vote:latest
+    build: ./vote
+    command: python app.py
+    tty: true
+    volumes:
+      - ./vote:/app
+    ports:
+      - "5000:80"
+    depends_on:
+      - "redis"
+    networks:
+      - front-tier
+      - back-tier
+
+  result:
+    image: civicactions/devsecops1-result:latest
+    build: ./result
+    command: nodemon server.js
+    tty: true
+    volumes:
+      - ./result:/app
+    depends_on:
+      - "db"
+    ports:
+      - "5001:80"
+    networks:
+      - front-tier
+      - back-tier
+
+  worker:
+    image: civicactions/devsecops1-worker:latest
+    build: ./worker
+    tty: true
+    depends_on:
+      - "redis"
+      - "db"
+    networks:
+      - back-tier
+
+  redis:
+    image: redis:5.0.10-alpine
+    container_name: redis
+    ports: ["6379"]
+    networks:
+      - back-tier
+
+  db:
+    image: postgres:9.6.19-alpine
+    container_name: db
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+    volumes:
+      - "db-data:/var/lib/postgresql/data"
+    networks:
+      - back-tier
+
+  tests:
+    image: civicactions/devsecops1-tests:latest
+    build: ./tests
+    tty: true
+    volumes:
+      - "./tests:/tests"
+    depends_on:
+      - "vote"
+      - "result"
+      - "worker"
+    networks:
+      - front-tier
+
+# TODO: Add automatic ZAP baseline scans to the CI pipeline (see issue #3)
+  # zap:
+  #   image: owasp/zap2docker-stable:2.9.0
+  #   volumes:
+  #     - "./tests/zap:/zap/wrk"
+  #   depends_on:
+  #     - "vote"
+  #     - "result"
+  #     - "worker"
+  #   networks:
+  #     - front-tier
+
+volumes:
+  db-data:
+
+networks:
+  front-tier:
+  back-tier:
